@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Segment Intersection</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="myCanvas"></canvas>
+    <script>
+        myCanvas.width = window.innerWidth;
+        myCanvas.height = window.innerHeight;
+
+        const A = {x: 50, y: 100};
+        const B = {x: 50, y: 100};
+        const C = {x: 50, y: 100};
+        const D = {x: 250, y: 200};
+
+        const ctx = myCanvas.getContext('2d');
+
+        const mouse = {x:0, y:0};
+
+        document.onmousemove=(evt)=>{
+            mouse.x = evt.x;
+            mouse.y = evt.y;
+        }
+        
+        let angle = 0;
+        let showPerpendiculars = false;
+        
+        myCanvas.onclick = (evt) => {
+            showPerpendiculars = showPerpendiculars?false:true;            
+        }
+        animate();
+
+        function animate() {
+            const radius = 50;
+            A.x = mouse.x + Math.cos(angle)*radius;
+            A.y = mouse.y + Math.sin(angle)*radius;
+            B.x = mouse.x - Math.cos(angle)*radius;
+            B.y = mouse.y - Math.sin(angle)*radius;
+
+            ctx.clearRect(0,0,myCanvas.width, myCanvas.height);
+
+            ctx.beginPath();
+            ctx.fillStyle = "black";
+            ctx.textBaseline = "middle";
+            ctx.font = "bold 14px Arial";
+            ctx.fillText("Click Anywhere to show Perpendiculars", 200, 20);
+            
+            ctx.beginPath();
+            ctx.moveTo(A.x, A.y);
+            ctx.lineTo(B.x, B.y);
+            ctx.moveTo(C.x, C.y);
+            ctx.lineTo(D.x, D.y);
+            ctx.stroke();
+            
+            if(showPerpendiculars){
+                drawPerpendicular(A, C, D, "a");
+                drawPerpendicular(B, C, D, "b");
+            }
+            drawDot(A, "A");
+            drawDot(B, "B");
+            drawDot(C, "C");
+            drawDot(D, "D");
+
+            const I = getIntersection(A,B,C,D);
+            
+            if (I) {
+                drawDot(I,"I", )
+            }
+
+            angle += 0.02;
+
+            requestAnimationFrame(animate);
+        }
+
+        function getIntersection(A,B,C,D) {
+            /*
+
+            The point of intersection is a point which satisfies the equations of both lines
+            Ix -> Ax + (Bx - Ax)t = Cx + (Dx-Cx)u
+            Iy -> Ay + (By - Ay)t = Cy + (Dy-Cy)u
+            
+            -> Ax + (Bx - Ax)t = Cx + (Dx-Cx)u |-Cx
+            -> (Dx-Cx)u = (Ax-Cx) + (Bx - Ax)t |-> Equation 1
+
+            -> Ax + (Bx - Ax)t = Cx + (Dx-Cx)u |-Ax
+            -> (Bx - Ax)t = (Dx-Cx)u - (Ax-Cx)|-> Equation 2
+
+            -> Ay + (By - Ay)t = Cy + (Dy-Cy)u |-Cy
+            
+            t ->
+            -> (Ay-Cy) + (By - Ay)t = (Dy-Cy)u |*(Dx-Cx)
+            
+            -> (Ay-Cy)(Dx-Cx) + (By - Ay)(Dx-Cx)t = (Ax-Cx)(Dy-Cy) + (Bx - Ax)(Dy-Cy)t | Using Equation 1
+            -> (Ay-Cy)(Dx-Cx) - (Ax-Cx)(Dy-Cy) = ((Bx - Ax)(Dy-Cy) - (By - Ay)(Dx-Cx))t
+            
+            top -> (Ay-Cy)(Dx-Cx) - (Ax-Cx)(Dy-Cy)
+            bottom -> (Bx - Ax)(Dy-Cy) - (By - Ay)(Dx-Cx)
+            
+            u ->
+            -> (By-Ay)t = (Dy-Cy)u - (Ay-Cy) |*(Bx - Ax)
+
+            -> (By-Ay)(Dx-Cx)u - (Ax-Cx)(By-Ay) = (Dy-Cy)(Bx-Ax)u - (Ay-Cy)(Bx-Ax) | Using Equation 2
+            -> ((Dy-Cy)(Bx-Ax) - (By-Ay)(Dx-Cx))u = (Ay-Cy)(Bx-Ax) - (Ax-Cx)(By-Ay)
+
+            top -> (Ay-Cy)(Bx-Ax) - (Ax-Cx)(By-Ay)
+            bottom -> (Dy-Cy)(Bx-Ax) - (By-Ay)(Dx-Cx)
+
+            -> Bottom is same for both u and t
+
+            */
+
+            const tTop = (D.x - C.x) * (A.y - C.y) - (D.y - C.y) * (A.x - C.x);
+            const uTop = (B.x - A.x) * (A.y - C.y) - (B.y - A.y) * (A.x - C.x);
+            const bottom = (D.y - C.y) * (B.x - A.x) - (D.x - C.x) * (B.y - A.y);
+            
+            if(bottom != 0) {
+                const t = tTop/bottom;
+                const u = uTop/bottom;
+                if (t>0 && t<1 && u>0 && u<1){
+                    return {
+                        x: lerp(A.x, B.x, t),
+                        y: lerp(A.y, B.y, t),
+                        offset: t
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        function lerp(A, B, t) {
+            return A + (B-A) * t;
+        }
+
+        function drawDot(point, label, isOut) {
+            ctx.beginPath();
+            ctx.fillStyle = isOut?"red":"white";
+            ctx.arc(point.x, point.y, 10, 0, Math.PI*2);
+            ctx.fill();
+            ctx.stroke();
+            ctx.fillStyle = "black";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.font = "bold 14px Arial";
+            ctx.fillText(label, point.x, point.y);
+        }
+
+        function drawPerpendicular(point, linepoint1, linepoint2, pN = "") {
+            ctx.beginPath();
+            ctx.setLineDash([2,2]);
+            ctx.moveTo(point.x, point.y);
+            const ratio = (
+                ((point.x - linepoint1.x) * (linepoint2.x - linepoint1.x) + (point.y - linepoint1.y) * (linepoint2.y - linepoint1.y))
+                /
+                ((linepoint2.x - linepoint1.x) * (linepoint2.x - linepoint1.x) + (linepoint2.y - linepoint1.y) * (linepoint2.y - linepoint1.y))
+            );
+            const pointOnLine = {
+                x: lerp(linepoint1.x, linepoint2.x, ratio),
+                y: lerp(linepoint1.y, linepoint2.y, ratio)
+            }
+            ctx.lineTo(pointOnLine.x, pointOnLine.y);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            drawDot(pointOnLine, `P${pN}`);
+        }
+
+    </script>
+</body>
+</html>
